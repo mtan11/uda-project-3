@@ -47,12 +47,10 @@ commands:
 
 jobs:
   build-frontend:
-    docker:
-      - image: *node-base-image
+    docker: *node-base-image
     steps:
+      - print_pipeline_id
       - checkout
-      - restore_cache:
-          keys: [frontend-build]
       - run:
           name: Build front-end
           command: |
@@ -62,23 +60,6 @@ jobs:
       - save_cache:
           paths: [frontend/node_modules]
           key: frontend-build
-      - slack/notify:
-          custom: |
-            {
-              "blocks": [
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "plain_text",
-                      "text": "*This is a text notification * - build-frontend",
-                      "emoji": true
-                    }
-                  ]
-                }
-              ]
-            }
-          event: always
 
   build-backend:
     docker:
