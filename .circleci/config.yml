@@ -1,5 +1,9 @@
 version: 2.1
 
+aliases:
+  - &node-base-image
+    - image: circleci/node:13.8.0
+
 orbs: 
   slack: circleci/slack@4.10.1
 
@@ -44,7 +48,7 @@ commands:
 jobs:
   build-frontend:
     docker:
-      - image: circleci/node:13.8.0
+      - image: *node-base-image
     steps:
       - checkout
       - restore_cache:
@@ -52,8 +56,8 @@ jobs:
       - run:
           name: Build front-end
           command: |
-            cd backend
-            npm i
+            cd frontend
+            npm install
             npm run build
       - save_cache:
           paths: [frontend/node_modules]
@@ -97,7 +101,7 @@ jobs:
   test-frontend:
     docker:
       ## Docker image here
-      - image: circleci/node:13.8.0
+      - image: *node-base-image
     steps:
       - checkout
       - restore_cache:
@@ -112,7 +116,7 @@ jobs:
   test-backend:
     docker:
       ## Docker image here
-      - image: circleci/node:13.8.0
+      - image: *node-base-image
     steps:
       - checkout
       - restore_cache:
@@ -126,7 +130,7 @@ jobs:
     
   scan-frontend:
     docker:
-      - image: circleci/node:13.8.0
+      - image: *node-base-image
     steps:
       - checkout
       - restore_cache:
@@ -142,7 +146,7 @@ jobs:
 
   scan-backend:
     docker:
-      - image: circleci/node:13.8.0
+      - image: *node-base-image
     steps:
       - checkout
       - restore_cache:
@@ -238,7 +242,7 @@ jobs:
 
   run-migrations:
     docker:
-      - image: circleci/node:13.8.0
+      - image: *node-base-image
     steps:
       - checkout
       - restore_cache:
@@ -481,8 +485,7 @@ jobs:
 workflows:
   default:
     jobs:
-      - build-frontend:
-          context: slack-secrets
+      - build-frontend
       - build-backend
       - test-frontend:
           requires: [build-frontend]
