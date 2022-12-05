@@ -171,14 +171,75 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Deploy EC2 instance on AWS with aws cli
-          working_directory: ./.circleci/files
+          name: Install tar and gzip library
+          command: |
+            yum install -y tar gzip
+      - run:
+          name: Ensure back-end infrastructure exists
+          # Use the workflow id to mark your CloudFormation stacks so that you can reference them later on (ex: rollback). 
+          # The command above (deploying the backend.yml file) will
+          # Create a SecurityGroup (allows port 22 and port 3030)
+          # Create an EC2 instance and attach the SecurityGroup.
+          # In the AWS console, ensure that the EC2 instance has port 3030 opened up to public traffic.
           command: |
             aws cloudformation deploy \
-                --template-file .circleci/files/backend.yml \
-                --stack-name "udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
-                --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}"  \
-                --tags project=udapeople-anmt1
+            --template-file .circleci/files/backend.yml \
+            --stack-name "udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
+            --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}"  \
+            --tags project=udapeople-anmt1 \
+            --region us-east-1
+      - run:
+          name: Ensure front-end infrastructure exist
+          command: |
+            aws cloudformation deploy \
+              --template-file .circleci/files/frontend1.yml \
+              --stack-name "udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}" \
+              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}" \
+              --tags project=udapeople-anmt1 \
+              --region us-east-1
+      - run:
+          name: Add back-end ip to ansible inventory
+          # Only filter new EC2 instances created by this pipeline.
+          command: |
+            aws ec2 describe-instances \
+            --query 'Reservations[*].Instances[*].PublicIpAddress' \
+            --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
+            --output text >> ~/project/.circleci/ansible/inventory.txt
+      - run:
+          name: "Echo EC2 instances"
+          command: |
+            echo "IP address:"
+            cat ~/project/.circleci/ansible/inventory.txt
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - project/.circleci/ansible/inventory.txt
+      - destroy_environment    
+
+  configure-infrastructure:
+    docker: *ansible-image
+    steps:
+      - print_pipeline_id
+      - checkout
+      # You can get this ID in the section where you registered the SSH Key
+      - add_ssh_keys:
+          fingerprints:
+            - "93:8d:3f:88:14:c3:91:a8:69:05:b5:08:53:12:5e:a9"
+      # Install ansible and dependencies
+      # Install aws-cli for destroy steps
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --update ansible
+      - attach_workspace:
+          at: ~/
+      - run:
+          name: Configure server
+          command: |
+            echo "IP address:"
+            cat ~/project/.circleci/ansible/inventory.txt
+            ansible-playbook -i ~/project/.circleci/ansible/inventory.txt .circleci/ansible/configure-server.yml
+      - destroy_environment
 
 workflows:
   default:
@@ -195,3 +256,5 @@ workflows:
           requires: [build-frontend]
       - deploy-infrastructure:
           requires: [test-frontend, test-backend, scan-frontend, scan-backend]
+      - configure-infrastructure:
+          requires: [deploy-infrastructure]
