@@ -218,7 +218,6 @@ jobs:
   configure-infrastructure:
     docker: *ansible-image
     steps:
-      - print_pipeline_id
       - checkout
       # You can get this ID in the section where you registered the SSH Key
       - add_ssh_keys:
