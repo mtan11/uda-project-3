@@ -280,14 +280,22 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys:
-            - build-backend
+          keys: [backend-build]
       - run:
+          name: Install dependencies
+          command: |
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+     - run:
           name: Run migrations
           command: |
             cd backend
             npm install
             npm run migrations > migrations_dump.txt
+
+            echo "migrations_dump -------"
+            cat migrations_dump.txt
       - run:
           name: Send migration status to kvdb.io
           command: |
@@ -313,9 +321,8 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys:
-            - build-frontend
-      - run:
+          keys: [frontend-build]
+       - run:
           name: Install dependencies
           command: |
             sudo apt update
@@ -351,6 +358,102 @@ jobs:
       - destroy-environment:
           workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
 
+  deploy-backend:	
+    docker:	
+      - image: python:3.9.1-alpine3.12     	
+    steps:	
+      - checkout	
+      - add_ssh_keys:	
+          fingerprints: ["14:45:30:21:c6:8d:8d:5f:ab:b8:24:3c:43:c2:70:90"]	
+      - attach_workspace: 	
+          at: ~/	
+      - restore_cache:	
+          keys: [backend-build]	
+      - run:	
+          name: Install dependencies	
+          command: |	
+            apk add --update curl nodejs npm	
+            apk add --update ansible zip	
+            apk add --update openssh-client tar gzip	
+            pip install awscli	
+      - run:	
+          name: Package backend	
+          command: |	
+            cd backend	
+            npm install typescript@latest -g	
+            npm install	
+            npm run build	
+            tar -czf artifact.tar.gz dist/* package*	
+            cd ..	
+            cp backend/artifact.tar.gz .circleci/ansible/roles/deploy/files	
+      - run:	
+          name: Deploy backend	
+          command: |	
+            export TYPEORM_MIGRATIONS_DIR=./migrations	
+            export TYPEORM_ENTITIES=./modules/domain/**/*.entity{.ts,.js}	
+            export TYPEORM_MIGRATIONS=./migrations/*.ts	
+            	
+            cd .circleci/ansible	
+            cat inventory.txt	
+            export ANSIBLE_HOST_KEY_CHECKING=False	
+            ansible-playbook -i inventory.txt deploy-backend.yml	
+      - slack/notify:	
+          event: pass	
+          template: success_tagged_deploy_1	
+      - slack/notify:	
+          event: fail	
+          template: basic_fail_1	
+      # Here's where you will add some code to rollback on failure	
+      - destroy-environment:	
+          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+
+  smoke-test:
+    docker:
+      - image: python:3.9.1-alpine3.12
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --update curl
+            pip install awscli
+      - run:	
+          name: Backend smoke test.	
+          command: |	
+            BACKEND_PUBLIC_IP=$(aws ec2 describe-instances \	
+              --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \	
+              --query 'Reservations[*].Instances[*].PublicIpAddress' \	
+              --output text)	
+            export API_URL=http://${BACKEND_PUBLIC_IP}:3030	
+            echo ${API_URL}	
+            if curl -s $API_URL/api/status | grep "ok"	
+            then	
+              exit 0	
+            else	
+              exit 1	
+            fi
+      - run:
+          name: Frontend smoke test.
+          command: |
+            URL="http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website.${AWS_DEFAULT_REGION}.amazonaws.com"             	            echo ${URL} 
+            if curl -s ${URL} | grep "Welcome"
+            then
+              exit 0
+            else
+              exit 1
+            fi
+      - slack/notify:
+          event: pass
+          template: success_tagged_deploy_1
+      - slack/notify:
+          event: fail
+          template: basic_fail_1
+      # Here's where you will add some code to rollback on failure
+      # - destroy-environment:
+          # workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+      # - revert-migrations:
+          # workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+
 workflows:
   default:
     jobs:
@@ -375,3 +478,7 @@ workflows:
           requires: [configure-infrastructure]
       - deploy-frontend:
           requires: [run-migrations]
+      - deploy-backend:
+          requires: [run-migrations]
+      - smoke-test:
+          requires: [deploy-backend, deploy-frontend]
