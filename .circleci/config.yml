@@ -353,7 +353,8 @@ jobs:
           workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
 
   deploy-backend:
-    docker: circleci/node:13.8.0
+    docker:
+      - image: python:3.11-rc-alpine
     steps:
       - print_pipeline_id
       - checkout
