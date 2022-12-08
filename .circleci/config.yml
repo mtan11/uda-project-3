@@ -71,7 +71,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys: [backend-build]
+          keys: [build-backend]
       - run:
           name: Back-end build
           command: |
@@ -80,7 +80,7 @@ jobs:
              npm run build
       - save_cache:
           paths: [backend/node_modules]
-          key: backend-build
+          key: build-backend
       - slack/notify:
           event: pass
           template: success_tagged_deploy_1
@@ -121,7 +121,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys: [backend-build]
+          keys: [build-backend]
       - run:
           name: Install dependencies for backend
           command: |
@@ -134,7 +134,7 @@ jobs:
             npm run test
       - save_cache:
           paths: [backend/node_modules]
-          key: backend-build
+          key: build-backend
       - slack/notify:
           event: pass
           template: success_tagged_deploy_1
@@ -175,7 +175,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys: [backend-build]
+          keys: [build-backend]
       - run:
           name: Install dependencies for backend
           command: |
@@ -188,7 +188,7 @@ jobs:
             npm audit fix --audit-level=critical --force
       - save_cache:
           paths: [backend/node_modules]
-          key: backend-build
+          key: build-backend
       - slack/notify:
           event: pass
           template: success_tagged_deploy_1
@@ -282,22 +282,14 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys: [backend-build]
-      - run:
-          name: Install dependencies
-          command: |
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            sudo ./aws/install
+          keys:
+            - build-backend
       - run:
           name: Run migrations
           command: |
             cd backend
             npm install
             npm run migrations > migrations_dump.txt
-
-            echo "migrations_dump -------"
-            cat migrations_dump.txt
       - run:
           name: Send migration status to kvdb.io
           command: |
@@ -370,7 +362,7 @@ jobs:
       - attach_workspace: 
           at: ~/
       - restore_cache:
-          keys: [backend-build]
+          keys: [build-backend]
       - run:
           name: Install dependencies
           command: |
