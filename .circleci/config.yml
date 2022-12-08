@@ -279,7 +279,7 @@ jobs:
       - checkout
       # Add ssh keys with fingerprint
       - add_ssh_keys:
-          fingerprints: ["14:45:30:21:c6:8d:8d:5f:ab:b8:24:3c:43:c2:70:90"]
+          fingerprints: ["c7:25:d4:ce:32:a7:a1:8d:1b:33:1a:89:90:45:b1:4d:59:11:6f:78"]
       # attach workspace
       - attach_workspace:
           at: ~/
@@ -384,51 +384,35 @@ jobs:
 
   deploy-backend:
     docker:
-      - image: python:3.11-rc-alpine
+      - image: python:3.7-alpine3.11
     steps:
-      - print_pipeline_id
       - checkout
-      - run:
-          name: Install dependencies
-          command: |
-            apk update
-            apk add --update ansible
-            apk add --no-cache tar npm gzip curl gcompat
-            apk add --no-cache python3 py3-pip
-            pip3 install --upgrade pip
-            pip3 install awscli
-            rm -rf /var/cache/apk/*
-            echo "Test aws cli version"
-            aws --version
-            which aws
-      # You can get this ID in the section where you registered the SSH Key
       - add_ssh_keys:
-          fingerprints:
-            - "c7:25:d4:ce:32:a7:a1:8d:1b:33:1a:89:90:45:b1:4d:59:11:6f:78	"
+          fingerprints: ["c7:25:d4:ce:32:a7:a1:8d:1b:33:1a:89:90:45:b1:4d:59:11:6f:78"]
       - attach_workspace:
           at: ~/
       - run:
-          name: Build backend
+          name: Install dependencies
           command: |
-            sed 's/local/production/g' ~/project/backend/.env
-            cd backend
-            npm install
-            echo "--- Backend variables ---"
-            cat ~/project/backend/.env
-            npm run build
-      - run:
-          name: Create backend artifact
-          command: |
-            tar czf backend-artifact.tar.gz backend
+            apk add --update tar gzip ansible nodejs npm
+            apk --no-cache add curl
+            pip install awscli
       - run:
           name: Deploy backend
           command: |
-            echo "Contents of the inventory.txt file is:"
-            cat ~/project/.circleci/ansible/inventory.txt
-            ansible-playbook -i ~/project/.circleci/ansible/inventory.txt .circleci/ansible/deploy-backend.yml
-      - revert_migrations:
-          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
-      - destroy-environment
+            cd backend
+            npm i
+            npm run build
+            cd ..
+            tar -C backend -czvf artifact.tar.gz .
+            cp artifact.tar.gz .circleci/ansible
+            cd .circleci/ansible
+            ansible-playbook -i inventory.txt deploy-backend.yml
+      - slack/notify:
+          event: fail
+          template: basic_fail_1
+      - destroy-environments:
+          workflow_id: "${CIRCLE_WORKFLOW_ID:0:7}"
 
   smoke-test:
     docker:
