@@ -12,6 +12,28 @@ commands:
           command:
             echo ${CIRCLE_WORKFLOW_ID:0:7}
 
+  revert_migrations:
+    description: Revert the last migration if successfully run in the current workflow.
+    parameters:
+      workflow_id:
+        type: string
+    steps:
+      - print_pipeline_id
+      - restore_cache:
+          keys: [backend-build]
+      - run:
+          name: Revert migrations
+          when: on_fail
+          # Need generate token on https://kvdb.io first.
+          command: |
+            echo "insecure" >> ~/.curlrc
+            SUCCESS=$(curl --insecure  https://kvdb.io/Cxn5Xz1r2v7asBahdnnnMh/migration_<< parameters.workflow_id >>)
+            if (( $SUCCESS == 1 ));
+            then
+              cd backend
+              npm run migrations:revert
+            fi
+
   destroy-environment:
     description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
     parameters:
