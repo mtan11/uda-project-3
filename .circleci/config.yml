@@ -334,10 +334,9 @@ jobs:
           event: fail
           template: basic_fail_1
       # Here's where you will add some code to rollback on failure
-      - destroy-environment:
-          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
       - revert-migrations:
           workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+      - destroy-environment
 
   deploy-frontend:
     docker:
@@ -456,10 +455,9 @@ jobs:
           event: fail
           template: basic_fail_1
       # Here's where you will add some code to rollback on failure
-      - destroy-environment:
-          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
       - revert-migrations:
           workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+      - destroy-environment
 
 workflows:
   default:
