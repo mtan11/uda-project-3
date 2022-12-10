@@ -343,27 +343,28 @@ jobs:
     docker:
       - image: circleci/node:13.8.0
     steps:
+      - print_pipeline_id
       - checkout
-      - restore_cache:
-          keys: [frontend-build]
+      - attach_workspace:
+          at: ~/
       - run:
           name: Install dependencies
           command: |
-            sudo apt update
-            sudo apt install -y tar gzip curl software-properties-common
-            # aws-cli
+            sudo apt install -y tar gzip curl unzip
+      - run:
+          name: Install aws-cli
+          command: |
             curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
             unzip awscliv2.zip
             sudo ./aws/install
-            # ansible
-            sudo add-apt-repository --yes --update ppa:ansible/ansible
-            sudo apt install ansible
       - run:
           name: Get backend url
           command: |
-             BACKEND_IP=$(aws cloudformation describe-stacks --stack-name udapeople-backend-"${CIRCLE_WORKFLOW_ID:0:7}" --query "Stacks[0].Outputs[0].OutputValue" --output text)
-             API_URL="http://${BACKEND_IP}:3030"
-             echo "API_URL=${API_URL}" >> frontend/.env
+            export BACKEND_IP=$(cat ~/project/.circleci/ansible/inventory.txt | sed 1d)
+            export API_URL="http://${BACKEND_IP}:3030"
+            echo "API_URL = ${API_URL}"
+            echo API_URL="http://${BACKEND_IP}:3030" >> frontend/.env
+            cat frontend/.env
       - run:
           name: Deploy frontend objects
           command: |
@@ -372,15 +373,9 @@ jobs:
             npm run build
             tar -czvf artifact-"${CIRCLE_WORKFLOW_ID:0:7}".tar.gz dist
             aws s3 cp dist s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --recursive
-      - slack/notify:
-          event: pass
-          template: success_tagged_deploy_1
-      - slack/notify:
-          event: fail
-          template: basic_fail_1
-      # Here's where you will add some code to rollback on failure
-      - destroy-environment:
+      - revert_migrations:
           workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+      - destroy_environment 
 
   deploy-backend:
     docker:
