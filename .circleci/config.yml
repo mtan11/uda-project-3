@@ -431,16 +431,13 @@ jobs:
       - run:
           name: Backend smoke test.
           command: |
-            echo " --- Cat inventory file --- "
-            cat ~/project/.circleci/ansible/inventory.txt | sed 1d
-            export BACKEND_IP=$(cat ~/project/.circleci/ansible/inventory.txt | sed 1d)
-            export API_URL="http://${BACKEND_IP}:3030"
-            
-            if [ "$(curl -sL -w '%{http_code}' ${API_URL}/api/status -o /dev/null)" = "200" ];
+            API_URL=$(curl --insecure https://kvdb.io/E2EWQQcGaY9xGnoPaidEtG/apiurl)
+            echo "${API_URL}"
+            if curl "${API_URL}/api/status" | grep "ok"
             then
-                exit 0
+              return 0
             else
-                exit 1
+              return 1
             fi
       - run:
           name: Frontend smoke test.
