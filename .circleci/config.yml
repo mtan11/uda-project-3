@@ -447,7 +447,7 @@ jobs:
             echo ${URL}
             if [ "$(curl -sL -w '%{http_code}' ${URL} -o /dev/null)" = "200" ];
             then
-              exit 0
+              exit 1
             else
               exit 1
             fi
