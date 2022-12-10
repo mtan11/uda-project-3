@@ -27,7 +27,7 @@ commands:
           # Need generate token on https://kvdb.io first.
           command: |
             echo "insecure" >> ~/.curlrc
-            SUCCESS=$(curl --insecure  https://kvdb.io/Cxn5Xz1r2v7asBahdnnnMh/migration_<< parameters.workflow_id >>)
+            SUCCESS=$(curl --insecure  https://kvdb.io/Kaqpt5yaj4X7SFicsxHXFt/migration_<< parameters.workflow_id >>)
             if (( $SUCCESS == 1 ));
             then
               cd backend
@@ -62,7 +62,7 @@ commands:
           name: Revert migrations
           when: on_fail
           command: |
-            SUCCESS=$(curl --insecure  https://kvdb.io/NZ81BebyvVRxtnqPExRCTY/migration_<<parameters.workflow_id>>)
+            SUCCESS=$(curl --insecure  https://kvdb.io/Kaqpt5yaj4X7SFicsxHXFt/migration_<<parameters.workflow_id>>)
             # Logic for reverting the database state
             if (( $SUCCESS == 1 ));
             then
@@ -325,7 +325,7 @@ jobs:
           command: |
             if grep -q "has been executed successfully." ~/project/backend/migrations_dump.txt
             then
-              curl https://kvdb.io/NZ81BebyvVRxtnqPExRCTY/migration_${CIRCLE_WORKFLOW_ID:0:7}  -d '1'
+              curl https://kvdb.io/Kaqpt5yaj4X7SFicsxHXFt/migration_${CIRCLE_WORKFLOW_ID:0:7}  -d '1'
             fi
       - slack/notify:
           event: pass
@@ -431,13 +431,11 @@ jobs:
       - run:
           name: Backend smoke test.
           command: |
-            export BACKEND_IP=$(aws ec2 describe-instances \
-              --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
-              --query 'Reservations[*].Instances[*].PublicIpAddress' \
-              --output text)
+            export BACKEND_IP=$(cat ~/project/.circleci/ansible/inventory.txt | sed 1d)
 
             export API_URL=http://${BACKEND_IP}:3030
-
+            echo ${CIRCLE_WORKFLOW_ID:0:7}
+            echo ${cat ~/project/.circleci/ansible/inventory.txt | sed 1d}
             echo ${API_URL}
 
             if curl -s $API_URL/api/status | grep "ok"
