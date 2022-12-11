@@ -376,7 +376,7 @@ jobs:
           workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
       - destroy-environment 
 
-   deploy-backend:
+  deploy-backend:
     docker:
       - image: python:3.9.1-alpine3.12     
     steps:
