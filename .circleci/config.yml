@@ -431,18 +431,16 @@ jobs:
       - run:
           name: Backend smoke test.
           command: |
+            echo " --- Test cat inventory file --- "
+            cat ~/project/.circleci/ansible/inventory.txt | sed 1d
             export BACKEND_IP=$(cat ~/project/.circleci/ansible/inventory.txt | sed 1d)
-
-            export API_URL=http://${BACKEND_IP}:3030
-            echo ${CIRCLE_WORKFLOW_ID:0:7}
-            echo ${cat ~/project/.circleci/ansible/inventory.txt | sed 1d}
-            echo ${API_URL}
-
-            if curl -s $API_URL/api/status | grep "ok"
+            export API_URL="http://${BACKEND_IP}:3030"
+            
+            if [ "$(curl -sL -w '%{http_code}' ${API_URL}/api/status -o /dev/null)" = "200" ];
             then
-              exit 0
+                exit 0
             else
-              exit 1
+                exit 1
             fi
       - run:
           name: Frontend smoke test.
