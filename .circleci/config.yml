@@ -376,37 +376,54 @@ jobs:
           workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
       - destroy-environment 
 
-  deploy-backend:
+   deploy-backend:
     docker:
-      - image: python:3.7-alpine3.11
+      - image: python:3.9.1-alpine3.12     
     steps:
       - checkout
       - add_ssh_keys:
           fingerprints: ["c7:25:d4:ce:32:a7:a1:8d:1b:33:1a:89:90:45:b1:4d:59:11:6f:78"]
-      - attach_workspace:
+      - attach_workspace: 
           at: ~/
+      - restore_cache:
+          keys: [backend-build]
       - run:
           name: Install dependencies
           command: |
-            apk add --update tar gzip ansible nodejs npm
-            apk --no-cache add curl
+            apk add --update curl nodejs npm
+            apk add --update ansible zip
+            apk add --update openssh-client tar gzip
             pip install awscli
+      - run:
+          name: Package backend
+          command: |
+            cd backend
+            npm install typescript@latest -g
+            npm install
+            npm run build
+            tar -czf artifact.tar.gz dist/* package*
+            cd ..
+            cp backend/artifact.tar.gz .circleci/ansible/roles/deploy/files
       - run:
           name: Deploy backend
           command: |
-            cd backend
-            npm i
-            npm run build
-            cd ..
-            tar -C backend -czvf artifact.tar.gz .
-            cp artifact.tar.gz .circleci/ansible
+            export TYPEORM_MIGRATIONS_DIR=./migrations
+            export TYPEORM_ENTITIES=./modules/domain/**/*.entity{.ts,.js}
+            export TYPEORM_MIGRATIONS=./migrations/*.ts
+
             cd .circleci/ansible
+            cat inventory.txt
+            export ANSIBLE_HOST_KEY_CHECKING=False
             ansible-playbook -i inventory.txt deploy-backend.yml
+      - slack/notify:
+          event: pass
+          template: success_tagged_deploy_1
       - slack/notify:
           event: fail
           template: basic_fail_1
+      # Here's where you will add some code to rollback on failure
       - destroy-environment:
-          workflow_id: "${CIRCLE_WORKFLOW_ID:0:7}"
+          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
 
   smoke-test:
     docker:
