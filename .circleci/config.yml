@@ -45,11 +45,9 @@ commands:
           name: Destroy environments
           when: on_fail
           command: |
-            if aws s3 ls | grep udapeople-<<parameters.workflow_id>>; then
-              aws s3 rm s3://udapeople-<<parameters.workflow_id>> --recursive
-            fi
-            aws cloudformation delete-stack --stack-name udapeople-frontend-<<parameters.workflow_id>>
-            aws cloudformation delete-stack --stack-name udapeople-backend-<<parameters.workflow_id>>
+            aws s3 rb s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --force
+            aws cloudformation delete-stack --stack-name "udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}"
+            aws cloudformation delete-stack --stack-name "udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}"
 
   revert-migrations:
     description: Revert the last migration if successfully run in the current workflow.
@@ -279,7 +277,7 @@ jobs:
       # Add ssh keys with fingerprint
       - add_ssh_keys:
           fingerprints:
-            - "06:ce:67:0b:e9:08:66:91:7f:7d:2a:3e:8c:f7:9d:1e"
+            - "b6:31:86:18:66:c3:34:f9:15:c3:55:ea:e1:bb:99:2f"
       # attach workspace
       - attach_workspace:
           at: ~/
@@ -393,7 +391,7 @@ jobs:
       # Add ssh keys with fingerprint
       - add_ssh_keys:
           fingerprints:
-            - "06:ce:67:0b:e9:08:66:91:7f:7d:2a:3e:8c:f7:9d:1e"
+            - "b6:31:86:18:66:c3:34:f9:15:c3:55:ea:e1:bb:99:2f"
       - attach_workspace:
           at: ~/
       - run:
