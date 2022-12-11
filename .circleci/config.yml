@@ -449,6 +449,15 @@ jobs:
           name: Backend smoke test.
           command: |
             echo " --- Test cat inventory file --- "
+            echo $(aws ec2 describe-instances \
+              --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
+              --query 'Reservations[*].Instances[*].PublicIpAddress' \
+              --output text)
+            export BACKEND_PUBLIC_IP=$(aws ec2 describe-instances \
+              --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
+              --query 'Reservations[*].Instances[*].PublicIpAddress' \
+              --output text)
+            echo ${BACKEND_PUBLIC_IP}
             cat ~/project/.circleci/ansible/inventory.txt | sed 1d
             export BACKEND_IP=$(cat ~/project/.circleci/ansible/inventory.txt | sed 1d)
             export API_URL="http://${BACKEND_IP}:3030"
@@ -463,7 +472,7 @@ jobs:
           name: Frontend smoke test.
           # Change return status to 0 after the job fails.
           command: |
-            URL="http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website-us-east-1b.amazonaws.com/#/employees"
+            URL="http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website.${AWS_DEFAULT_REGION}.amazonaws.com"             
             echo ${URL}
             if [ "$(curl -sL -w '%{http_code}' ${URL} -o /dev/null)" = "200" ];
             then
