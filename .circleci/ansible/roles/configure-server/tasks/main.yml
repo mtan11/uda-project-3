@@ -1,28 +1,25 @@
----
+- name: create directory 
+  become: yes
+  file: 
+    path: /home/app
+    state: directory
+    mode: 0755
 
-- name: "Add nodejs from deb.nodesource.com."
+- name: copy artifact to app directory
+  become: yes
+  copy: 
+    src: ~/project/artifact.tar.gz
+    dest: /home/app/artifact.tar.gz
+
+- name: uncompress
   become: yes
   shell: |
-    curl -sL https://deb.nodesource.com/setup_13.x | sudo -E bash -
+    cd /home/app
+    tar -vxf artifact.tar.gz
 
-- name: "Install nodejs 13.x."
-  become: yes
-  apt:
-    name: ["nodejs"]
-    state: latest
-    update_cache: yes
-
-- name: "Install zip utility."
-  become: yes
-  apt:
-    name: [ "zip", "unzip" ]
-    state: latest
-    update_cache: yes
-
-- name: "Install pm2."
-  become: yes
-  npm:
-    name: pm2
-    global: yes
-    production: yes
-    state: present
+- name: build and start node
+  shell: |
+    cd /home/app
+    npm install
+    pm2 stop default
+    pm2 start npm -- start
